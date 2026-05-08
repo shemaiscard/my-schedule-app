@@ -9,6 +9,8 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon.png">
   <title>My Schedule</title>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -323,6 +325,64 @@
     .no-class-msg .msg { font-size: 1rem; font-weight: 600; }
     .no-class-msg .sub { font-size: 0.82rem; margin-top: 4px; color: #334155; }
 
+    /* FAB */
+    .fab-btn {
+      position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px;
+      border-radius: 50%; background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: white; font-size: 28px; font-weight: 300; border: none;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4); cursor: pointer;
+      z-index: 100; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .fab-btn:active { transform: scale(0.9); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px);
+      display: none; justify-content: center; align-items: center;
+      z-index: 200; opacity: 0; transition: opacity 0.3s;
+    }
+    .modal-overlay.show { display: flex; opacity: 1; }
+    .modal-content {
+      background: #1e293b; padding: 24px; border-radius: 16px; width: 90%; max-width: 400px;
+      border: 1px solid #334155; transform: translateY(20px); transition: transform 0.3s;
+    }
+    .modal-overlay.show .modal-content { transform: translateY(0); }
+    .modal-content h3 { margin-bottom: 16px; color: #f8fafc; font-size: 1.2rem; }
+    .modal-content input {
+      width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px;
+      border: 1px solid #475569; background: #0f172a; color: #f1f5f9; font-size: 1rem;
+    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+    .modal-actions button { padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-cancel { background: transparent; color: #94a3b8; }
+    .btn-save { background: #2563eb; color: white; }
+
+    /* Assignments */
+    .assignments-header { margin: 32px 0 12px; font-size: 1.1rem; font-weight: 800; color: #f8fafc; }
+    .assignment-card {
+      background: #1e293b; padding: 14px; border-radius: 12px; margin-bottom: 10px;
+      border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;
+    }
+    .assignment-card .a-title { font-weight: 700; color: #f1f5f9; }
+    .assignment-card .a-meta { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+    .assignment-card button.del-btn {
+      background: transparent; color: #38bdf8; border: 1px solid #38bdf8;
+      border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.75rem;
+    }
+
+    /* Toasts */
+    .toast-container {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 300;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .toast {
+      background: #3b82f6; color: white; padding: 12px 20px; border-radius: 30px;
+      font-size: 0.9rem; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: slideDownToast 0.4s ease-out;
+    }
+    @keyframes slideDownToast { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
     /* Legend */
     .legend {
       display: flex;
@@ -381,6 +441,24 @@
 <div class="day-tabs" id="dayTabs"></div>
 
 <div class="events-list" id="eventsList"></div>
+
+<div class="assignments-header">Upcoming Assignments</div>
+<div class="assignments-list" id="assignmentsList"></div>
+
+<div id="toastContainer" class="toast-container"></div>
+<button id="addAssignmentBtn" class="fab-btn">+</button>
+<div id="assignmentModal" class="modal-overlay">
+  <div class="modal-content">
+    <h3>New Assignment</h3>
+    <input type="text" id="assignTitle" placeholder="Assignment Title" />
+    <input type="text" id="assignClass" placeholder="Class Name (Optional)" />
+    <input type="date" id="assignDate" />
+    <div class="modal-actions">
+      <button id="cancelBtn" class="btn-cancel">Cancel</button>
+      <button id="saveBtn" class="btn-save">Save</button>
+    </div>
+  </div>
+</div>
 
 <div class="legend">
   <div class="legend-item"><span class="legend-dot l-now"></span> Current</div>
@@ -602,6 +680,84 @@
   tick();
   setInterval(tick, 10000);
   setInterval(updateClock, 1000);
+
+  // SUPABASE INTEGRATION
+  const SUPABASE_URL = 'https://llikgfuvhqvhamnqdsqe.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_dPLgzkiSNDROdRJR1fNWwg_keFNE17T';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.getElementById('toastContainer').appendChild(t);
+    setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.remove(), 300); }, 3000);
+  }
+
+  const modal = document.getElementById('assignmentModal');
+  document.getElementById('addAssignmentBtn').onclick = () => { modal.classList.add('show'); };
+  document.getElementById('cancelBtn').onclick = () => { modal.classList.remove('show'); };
+  
+  document.getElementById('saveBtn').onclick = async () => {
+    const title = document.getElementById('assignTitle').value;
+    const className = document.getElementById('assignClass').value;
+    const date = document.getElementById('assignDate').value;
+    if (!title) return showToast('Title is required!');
+    
+    document.getElementById('saveBtn').textContent = 'Saving...';
+    const { error } = await supabase.from('assignments').insert([{ title, class_name: className, due_date: date }]);
+    document.getElementById('saveBtn').textContent = 'Save';
+    
+    if (error) {
+      showToast('Error saving: ' + error.message);
+    } else {
+      modal.classList.remove('show');
+      document.getElementById('assignTitle').value = '';
+      document.getElementById('assignClass').value = '';
+      showToast('Assignment added!');
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('New Assignment Added', { body: title });
+      }
+
+      fetchAssignments();
+    }
+  };
+
+  async function fetchAssignments() {
+    const list = document.getElementById('assignmentsList');
+    list.innerHTML = '<div style="color:#94a3b8">Loading...</div>';
+    const { data, error } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+    
+    if (error) { list.innerHTML = '<div style="color:red">Please create the assignments table in Supabase!</div>'; return; }
+    list.innerHTML = '';
+    if (data.length === 0) { list.innerHTML = '<div style="color:#64748b">No assignments pending!</div>'; return; }
+    
+    data.forEach(a => {
+      const el = document.createElement('div');
+      el.className = 'assignment-card';
+      el.innerHTML = `
+        <div>
+          <div class="a-title">${a.title}</div>
+          <div class="a-meta">${a.class_name ? a.class_name + ' • ' : ''}${a.due_date || 'No Date'}</div>
+        </div>
+        <button class="del-btn" onclick="deleteAssignment(${a.id})">Done</button>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  window.deleteAssignment = async (id) => {
+    const { error } = await supabase.from('assignments').delete().eq('id', id);
+    if (error) showToast('Error deleting');
+    else { showToast('Completed! 🎉'); fetchAssignments(); }
+  };
+
+  if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+    Notification.requestPermission();
+  }
+
+  fetchAssignments();
 
   // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
