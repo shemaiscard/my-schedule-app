@@ -684,7 +684,7 @@
   // SUPABASE INTEGRATION
   const SUPABASE_URL = 'https://llikgfuvhqvhamnqdsqe.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_dPLgzkiSNDROdRJR1fNWwg_keFNE17T';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   function showToast(msg) {
     const t = document.createElement('div');
@@ -705,7 +705,7 @@
     if (!title) return showToast('Title is required!');
     
     document.getElementById('saveBtn').textContent = 'Saving...';
-    const { error } = await supabase.from('assignments').insert([{ title, class_name: className, due_date: date }]);
+    const { error } = await db.from('assignments').insert([{ title, class_name: className, due_date: date }]);
     document.getElementById('saveBtn').textContent = 'Save';
     
     if (error) {
@@ -727,7 +727,7 @@
   async function fetchAssignments() {
     const list = document.getElementById('assignmentsList');
     list.innerHTML = '<div style="color:#94a3b8">Loading...</div>';
-    const { data, error } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('assignments').select('*').order('created_at', { ascending: false });
     
     if (error) { list.innerHTML = '<div style="color:red">Please create the assignments table in Supabase!</div>'; return; }
     list.innerHTML = '';
@@ -748,7 +748,7 @@
   }
 
   window.deleteAssignment = async (id) => {
-    const { error } = await supabase.from('assignments').delete().eq('id', id);
+    const { error } = await db.from('assignments').delete().eq('id', id);
     if (error) showToast('Error deleting');
     else { showToast('Completed! 🎉'); fetchAssignments(); }
   };
