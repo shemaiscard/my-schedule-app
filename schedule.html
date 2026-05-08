@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
+  <title>My Schedule</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 16px 12px 80px;
+      overflow-x: hidden;
+    }
+
+    /* Clock area */
+    .clock-area {
+      text-align: center;
+      padding: 20px 0 12px;
+    }
+    .clock-area .date-text {
+      font-size: 0.82rem;
+      color: #64748b;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .clock-area .time-text {
+      font-size: 3rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .clock-area .time-text .seconds {
+      font-size: 1.2rem;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    /* Countdown card */
+    .countdown-card {
+      margin: 16px 0;
+      padding: 16px 20px;
+      border-radius: 16px;
+      display: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .countdown-card.active-now {
+      background: linear-gradient(135deg, #451a03cc, #78350faa);
+      border: 1px solid #f59e0b44;
+    }
+    .countdown-card.active-next {
+      background: linear-gradient(135deg, #0c4a6ecc, #164e63aa);
+      border: 1px solid #22d3ee44;
+    }
+    .countdown-card .cd-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .countdown-card.active-now .cd-label { color: #fbbf24; }
+    .countdown-card.active-next .cd-label { color: #67e8f9; }
+    .countdown-card .cd-time {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .countdown-card.active-now .cd-time { color: #fef3c7; }
+    .countdown-card.active-next .cd-time { color: #cffafe; }
+    .countdown-card .cd-class {
+      font-size: 0.9rem;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .countdown-card.active-now .cd-class { color: #fde68a; }
+    .countdown-card.active-next .cd-class { color: #a5f3fc; }
+    .countdown-card .cd-room {
+      font-size: 0.75rem;
+      margin-top: 2px;
+      opacity: 0.7;
+    }
+
+    /* Day tabs */
+    .day-tabs {
+      display: flex;
+      gap: 4px;
+      margin: 16px 0 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 2px 0;
+    }
+    .day-tabs::-webkit-scrollbar { display: none; }
+    .day-tab {
+      flex: 1;
+      min-width: 60px;
+      padding: 10px 6px;
+      text-align: center;
+      border-radius: 12px;
+      background: #1e293b;
+      border: 1px solid transparent;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.25s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .day-tab.active {
+      background: #334155;
+      color: #f8fafc;
+      border-color: #475569;
+    }
+    .day-tab.is-today {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: #fff;
+      border-color: #38bdf8;
+    }
+    .day-tab .tab-day { display: block; font-size: 0.72rem; }
+    .day-tab .tab-num {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+    .day-tab .tab-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #475569;
+      margin: 4px auto 0;
+    }
+    .day-tab.is-today .tab-dot { background: #bae6fd; }
+    .day-tab.has-classes .tab-dot { background: #38bdf8; }
+
+    /* Events list */
+    .events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .event-card {
+      padding: 16px;
+      border-radius: 14px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      position: relative;
+      transition: all 0.3s;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .event-card .time-col {
+      min-width: 48px;
+      text-align: center;
+      padding-top: 2px;
+    }
+    .event-card .time-col .t-start {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+    .event-card .time-col .t-end {
+      font-size: 0.7rem;
+      color: #475569;
+      margin-top: 1px;
+    }
+    .event-card .time-col .t-line {
+      width: 2px;
+      height: 16px;
+      background: #334155;
+      margin: 4px auto;
+      border-radius: 2px;
+    }
+    .event-card .info-col {
+      flex: 1;
+      min-width: 0;
+    }
+    .event-card .ev-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1.3;
+    }
+    .event-card .ev-meta {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-top: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .event-card .ev-meta span { display: flex; align-items: center; gap: 3px; }
+    .event-card .ev-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #0f172a;
+      color: #64748b;
+      font-weight: 600;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* NOW state */
+    .event-card.now {
+      border-color: #f59e0b;
+      background: linear-gradient(135deg, #451a03aa, #78350f66);
+      box-shadow: 0 4px 24px #f59e0b18;
+    }
+    .event-card.now .time-col .t-start { color: #fbbf24; }
+    .event-card.now .time-col .t-line { background: #f59e0b; }
+    .event-card.now .ev-name { color: #fef3c7; }
+    .event-card.now .ev-meta { color: #fde68a88; }
+    .event-card.now .ev-badge { background: #451a03; color: #fbbf24; }
+    .event-card.now::after {
+      content: "NOW";
+      position: absolute;
+      top: 12px; right: 12px;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #0f172a;
+      background: #f59e0b;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+      animation: pulseBadge 2s infinite;
+    }
+    @keyframes pulseBadge {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* NEXT state */
+    .event-card.next {
+      border-color: #22d3ee;
+      background: linear-gradient(135deg, #0c4a6e88, #164e6366);
+      box-shadow: 0 4px 24px #22d3ee10;
+    }
+    .event-card.next .time-col .t-start { color: #67e8f9; }
+    .event-card.next .time-col .t-line { background: #22d3ee; }
+    .event-card.next .ev-name { color: #cffafe; }
+    .event-card.next .ev-meta { color: #a5f3fc88; }
+    .event-card.next .ev-badge { background: #0c4a6e; color: #67e8f9; }
+    .event-card.next::after {
+      content: "UP NEXT";
+      position: absolute;
+      top: 12px; right: 12px;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #0f172a;
+      background: #22d3ee;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
+
+    /* DONE state */
+    .event-card.done {
+      opacity: 0.35;
+      border-color: #1e293b;
+    }
+
+    .no-class-msg {
+      text-align: center;
+      padding: 60px 20px;
+      color: #475569;
+    }
+    .no-class-msg .emoji { font-size: 2.5rem; margin-bottom: 10px; }
+    .no-class-msg .msg { font-size: 1rem; font-weight: 600; }
+    .no-class-msg .sub { font-size: 0.82rem; margin-top: 4px; color: #334155; }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: #475569;
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .legend-dot.l-now { background: #f59e0b; }
+    .legend-dot.l-next { background: #22d3ee; }
+    .legend-dot.l-done { background: #334155; }
+
+    /* Progress bar at very top */
+    .day-progress {
+      height: 3px;
+      background: #1e293b;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .day-progress .bar {
+      height: 100%;
+      background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+      border-radius: 3px;
+      transition: width 1s linear;
+    }
+  </style>
+</head>
+<body>
+
+<div class="day-progress"><div class="bar" id="progressBar"></div></div>
+
+<div class="clock-area">
+  <div class="date-text" id="dateLabel"></div>
+  <div class="time-text" id="clock"></div>
+</div>
+
+<div class="countdown-card" id="countdown">
+  <div class="cd-label" id="cdLabel"></div>
+  <div class="cd-time" id="cdTime"></div>
+  <div class="cd-class" id="cdClass"></div>
+  <div class="cd-room" id="cdRoom"></div>
+</div>
+
+<div class="day-tabs" id="dayTabs"></div>
+
+<div class="events-list" id="eventsList"></div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot l-now"></span> Current</div>
+  <div class="legend-item"><span class="legend-dot l-next"></span> Up Next</div>
+  <div class="legend-item"><span class="legend-dot l-done"></span> Done</div>
+</div>
+
+<script>
+  const schedule = {
+    1: [
+      { name: "Problem Solving Concepts", time: "09:00", end_t: "10:50", start: 540, end: 650, type: "Lecture", room: "1402", prof: "Mohammed" },
+      { name: "Digital Forensics", time: "11:00", end_t: "12:50", start: 660, end: 770, type: "Lecture", room: "1402", prof: "Grace" },
+      { name: "KIIP Class", time: "14:00", end_t: "17:50", start: 840, end: 1070, type: "Class", room: "", prof: "" },
+    ],
+    2: [
+      { name: "Blockchain & Crypto", time: "09:00", end_t: "10:50", start: 540, end: 650, type: "Lecture", room: "1402", prof: "Grace" },
+      { name: "Mobile Programming", time: "11:00", end_t: "12:50", start: 660, end: 770, type: "Lecture", room: "Lab-4 / 1404", prof: "Sarwar" },
+    ],
+    3: [],
+    4: [
+      { name: "Mobile Programming", time: "09:00", end_t: "09:50", start: 540, end: 590, type: "Tutorial", room: "Lab-4 / 1404", prof: "Sarwar" },
+      { name: "Digital Forensics", time: "10:00", end_t: "10:50", start: 600, end: 650, type: "Tutorial", room: "Lab-3 / 1321", prof: "Grace" },
+      { name: "Problem Solving Concepts", time: "11:00", end_t: "11:50", start: 660, end: 710, type: "Tutorial", room: "1123", prof: "Mohammed" },
+      { name: "Blockchain & Crypto", time: "12:00", end_t: "12:50", start: 720, end: 770, type: "Tutorial", room: "Lab-3 / 1321", prof: "Grace" },
+      { name: "Seminar on IT Practices", time: "13:00", end_t: "13:50", start: 780, end: 830, type: "Tutorial", room: "1403", prof: "Baseem" },
+    ],
+    5: [
+      { name: "Internet of Things", time: "09:00", end_t: "10:50", start: 540, end: 650, type: "Lecture", room: "Lab-2 / 1322", prof: "Mohammed" },
+      { name: "Internet of Things", time: "11:00", end_t: "11:50", start: 660, end: 710, type: "Tutorial", room: "Lab-2 / 1322", prof: "Mohammed" },
+      { name: "Seminar on IT Practices", time: "12:00", end_t: "13:50", start: 720, end: 830, type: "Lecture", room: "1403", prof: "Baseem" },
+    ],
+  };
+
+  const dayLabels = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri" };
+  const dayFull = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
+
+  let selectedDay = null;
+
+  function now() { return new Date(); }
+  function nowMin() { const n = now(); return n.getHours() * 60 + n.getMinutes(); }
+  function today() { return now().getDay(); }
+
+  function getWeekDates() {
+    const n = now();
+    const day = n.getDay();
+    const dates = {};
+    for (let d = 1; d <= 5; d++) {
+      const diff = d - day;
+      const dt = new Date(n);
+      dt.setDate(n.getDate() + diff);
+      dates[d] = dt.getDate();
+    }
+    return dates;
+  }
+
+  function findCurrentAndNext() {
+    const t = today(), nm = nowMin();
+    let currentEvent = null, nextEvent = null;
+
+    if (schedule[t]) {
+      for (const ev of schedule[t]) {
+        if (nm >= ev.start && nm < ev.end) currentEvent = { ...ev, day: t };
+        if (!nextEvent && nm < ev.start) { nextEvent = { ...ev, day: t }; break; }
+      }
+    }
+    if (!nextEvent) {
+      for (let off = 1; off <= 7; off++) {
+        let d = t + off;
+        if (d > 5) d = d > 7 ? d - 7 : d;
+        if (d > 5 || d < 1) continue;
+        if (schedule[d] && schedule[d].length > 0) {
+          nextEvent = { ...schedule[d][0], day: d };
+          break;
+        }
+      }
+    }
+    return { currentEvent, nextEvent };
+  }
+
+  function renderTabs() {
+    const tabs = document.getElementById("dayTabs");
+    const t = today();
+    const dates = getWeekDates();
+    if (selectedDay === null) selectedDay = (t >= 1 && t <= 5) ? t : 1;
+
+    tabs.innerHTML = "";
+    for (let d = 1; d <= 5; d++) {
+      const tab = document.createElement("div");
+      const isToday = d === t;
+      const isActive = d === selectedDay;
+      const hasClasses = schedule[d] && schedule[d].length > 0;
+      tab.className = "day-tab" + (isToday ? " is-today" : "") + (isActive && !isToday ? " active" : "");
+      tab.innerHTML = `
+      <span class="tab-day">${dayLabels[d]}</span>
+      <span class="tab-num">${dates[d] || ""}</span>
+      <div class="tab-dot" style="${hasClasses ? "" : "opacity:0"}"></div>
+    `;
+      tab.onclick = () => { selectedDay = d; renderTabs(); renderEvents(); };
+      tabs.appendChild(tab);
+    }
+  }
+
+  function renderEvents() {
+    const list = document.getElementById("eventsList");
+    const events = schedule[selectedDay] || [];
+    const t = today(), nm = nowMin();
+    const { currentEvent, nextEvent } = findCurrentAndNext();
+
+    list.innerHTML = "";
+    if (events.length === 0) {
+      list.innerHTML = `<div class="no-class-msg">
+      <div class="emoji">&#9728;&#65039;</div>
+      <div class="msg">No classes on ${dayFull[selectedDay]}</div>
+      <div class="sub">Enjoy your free day!</div>
+    </div>`;
+      return;
+    }
+
+    for (const ev of events) {
+      const card = document.createElement("div");
+      card.className = "event-card";
+
+      const isNow = currentEvent && selectedDay === t && ev.start === currentEvent.start && ev.name === currentEvent.name;
+      const isNext = nextEvent && selectedDay === nextEvent.day && ev.start === nextEvent.start && ev.name === nextEvent.name;
+      const isDone = selectedDay < t || (selectedDay === t && nm >= ev.end);
+
+      if (isNow) card.className += " now";
+      else if (isNext) card.className += " next";
+      else if (isDone) card.className += " done";
+
+      card.innerHTML = `
+      <div class="time-col">
+        <div class="t-start">${ev.time}</div>
+        <div class="t-line"></div>
+        <div class="t-end">${ev.end_t}</div>
+      </div>
+      <div class="info-col">
+        <div class="ev-name">${ev.name}</div>
+        <div class="ev-meta">
+          ${ev.prof ? `<span>&#128100; Prof. ${ev.prof}</span>` : ""}
+          ${ev.room ? `<span>&#128205; ${ev.room}</span>` : ""}
+        </div>
+        <span class="ev-badge">${ev.type}</span>
+      </div>
+    `;
+      list.appendChild(card);
+    }
+  }
+
+  function updateClock() {
+    const n = now();
+    const h = String(n.getHours()).padStart(2, "0");
+    const m = String(n.getMinutes()).padStart(2, "0");
+    const s = String(n.getSeconds()).padStart(2, "0");
+    document.getElementById("clock").innerHTML = `${h}:${m}<span class="seconds">:${s}</span>`;
+    document.getElementById("dateLabel").textContent = n.toLocaleDateString("en-US", {
+      weekday: "long", month: "short", day: "numeric", year: "numeric"
+    });
+  }
+
+  function updateCountdown() {
+    const { currentEvent, nextEvent } = findCurrentAndNext();
+    const cd = document.getElementById("countdown");
+    const nm = nowMin(), t = today();
+
+    cd.style.display = "none";
+    cd.className = "countdown-card";
+
+    if (currentEvent) {
+      cd.style.display = "block";
+      cd.className = "countdown-card active-now";
+      const rem = currentEvent.end - nm;
+      const rh = Math.floor(rem / 60), rm = rem % 60;
+      document.getElementById("cdLabel").textContent = "Happening now";
+      document.getElementById("cdTime").textContent = rh > 0 ? `${rh}h ${rm}m remaining` : `${rm} min remaining`;
+      document.getElementById("cdClass").textContent = currentEvent.name;
+      document.getElementById("cdRoom").textContent = currentEvent.room ? `Room ${currentEvent.room} \u2022 Prof. ${currentEvent.prof}` : "";
+    } else if (nextEvent) {
+      cd.style.display = "block";
+      cd.className = "countdown-card active-next";
+      let mins;
+      if (nextEvent.day === t) {
+        mins = nextEvent.start - nm;
+      } else {
+        let daysUntil = nextEvent.day - t;
+        if (daysUntil <= 0) daysUntil += 7;
+        mins = daysUntil * 1440 - nm + nextEvent.start;
+      }
+      const dh = Math.floor(mins / 60), dm = mins % 60;
+      document.getElementById("cdLabel").textContent = "Up next";
+      if (dh >= 24) {
+        const dd = Math.floor(dh / 24), rh = dh % 24;
+        document.getElementById("cdTime").textContent = `in ${dd}d ${rh}h ${dm}m`;
+      } else {
+        document.getElementById("cdTime").textContent = dh > 0 ? `in ${dh}h ${dm}m` : `in ${dm} min`;
+      }
+      document.getElementById("cdClass").textContent = nextEvent.name + (nextEvent.day !== t ? ` \u2022 ${dayFull[nextEvent.day]}` : "");
+      document.getElementById("cdRoom").textContent = nextEvent.room ? `Room ${nextEvent.room} \u2022 Prof. ${nextEvent.prof}` : "";
+    }
+  }
+
+  function updateProgress() {
+    const nm = nowMin();
+    const dayStart = 540, dayEnd = 1080; // 9am to 6pm
+    let pct = ((nm - dayStart) / (dayEnd - dayStart)) * 100;
+    pct = Math.max(0, Math.min(100, pct));
+    document.getElementById("progressBar").style.width = pct + "%";
+  }
+
+  function tick() {
+    updateClock();
+    updateCountdown();
+    updateProgress();
+    renderEvents();
+  }
+
+  renderTabs();
+  tick();
+  setInterval(tick, 10000);
+  setInterval(updateClock, 1000);
+
+  // Register Service Worker for PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('Service Worker registered:', reg);
+      }).catch(err => {
+        console.log('Service Worker registration failed:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
