@@ -1,41 +1,37 @@
 # My Schedule App
 
-My Schedule App is a professional, offline-capable Progressive Web App (PWA) designed to provide students and professionals with seamless access to their class schedules. Built with a focus on speed, reliability, and user experience, the application ensures that users can view their schedules even without an active internet connection.
+**Live demo:** [zeschedule.netlify.app](https://zeschedule.netlify.app/)
 
-## Live Demo
+A class timetable and assignment tracker for students, built as an installable web app. The weekly schedule opens even without a connection, and assignments sync through Supabase so everyone sees the same list.
 
-Experience the application live: [zeschedule.netlify.app](https://zeschedule.netlify.app/)
+## Features
 
-## Key Features
+- **Weekly timetable** from Monday to Friday
+- **Shared assignments:** add a title and due date, delete it when done. Assignments are stored in a Supabase table
+- **Notifications:** the browser can alert you when a new assignment is added (Notifications API, after you allow it)
+- **Offline:** a service worker caches the app, so the timetable loads without internet
+- **Installable** on a phone or desktop home screen
 
-- Offline Access: Full PWA support allowing for offline viewing once loaded.
-- Modern Interface: Clean and intuitive design for rapid information retrieval.
-- Responsive Design: Optimized for both mobile and desktop environments.
-- High Performance: Minimal load times through optimized asset management.
-- Classmate-Focused: Specifically tailored to help students manage their daily academic routines.
+## Tech stack
 
-## Technical Stack
+| Part | Technology |
+| --- | --- |
+| Front end | HTML5, CSS3 (Grid and Flexbox), vanilla JavaScript |
+| Data | Supabase (`assignments` table) |
+| App | Service worker, web manifest, Notifications API |
+| Testing | Playwright smoke test (`test_script.py`) |
+| Hosting | Netlify (`/` serves `schedule.html`) |
 
-- Frontend: HTML5, CSS3 (Modern Grid and Flexbox)
-- Logic: Vanilla JavaScript
-- Progressive Web App: Service Workers (sw.js) and Manifest API
-- Deployment: Netlify
+## Run locally
 
-## Getting Started
+```bash
+git clone https://github.com/shemaiscard/my-schedule-app.git
+cd my-schedule-app
+python3 -m http.server 8000
+```
 
-### Local Development
-
-1. Clone the repository:
-   git clone https://github.com/shemaiscard/my-schedule-app.git
-
-2. Open the project folder.
-
-3. Serve the application using a local server (e.g., Live Server in VS Code) to test PWA features.
-
-## Deployment
-
-The application is configured for deployment via Netlify. The `netlify.toml` file contains the necessary redirect and header configurations for optimal performance.
+Open <http://localhost:8000/schedule.html>. A local server is needed for the service worker and notifications.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License
